@@ -1,0 +1,99 @@
+```sql
+-- Users Table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
+    is_verified BOOLEAN DEFAULT FALSE,
+    profile_picture VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Therapists Table
+CREATE TABLE therapists (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    license_number VARCHAR(100) UNIQUE NOT NULL,
+    specialization TEXT[],
+    bio TEXT,
+    years_experience INTEGER,
+    is_verified BOOLEAN DEFAULT FALSE,
+    availability JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat Rooms Table
+CREATE TABLE chat_rooms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    topic VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Messages Table
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    chat_room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_flagged BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Private Messages Table
+CREATE TABLE private_messages (
+    id SERIAL PRIMARY KEY,
+    sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Appointments Table
+CREATE TABLE appointments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    therapist_id INTEGER REFERENCES therapists(id) ON DELETE CASCADE,
+    appointment_date TIMESTAMP NOT NULL,
+    duration INTEGER DEFAULT 60,
+    status VARCHAR(50) DEFAULT 'scheduled',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI Conversations Table
+CREATE TABLE ai_conversations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    conversation_history JSONB,
+    crisis_detected BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat Room Members Table
+CREATE TABLE chat_room_members (
+    id SERIAL PRIMARY KEY,
+    chat_room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chat_room_id, user_id)
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_messages_chatroom ON messages(chat_room_id);
+CREATE INDEX idx_messages_user ON messages(user_id);
+CREATE INDEX idx_appointments_user ON appointments(user_id);
+CREATE INDEX idx_appointments_therapist ON appointments(therapist_id);
+CREATE INDEX idx_appointments_date ON appointments(appointment_date);
