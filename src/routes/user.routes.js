@@ -1,54 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
-const pool = require('../config/database');
+const userController = require('../controllers/user.controller');
+const { validate, validationRules } = require('../utils/validation');
+const { body } = require('express-validator');
 
-router.get('/profile', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, email, first_name, last_name, role, profile_picture, 
-              is_verified, created_at 
-       FROM users WHERE id = $1`,
-      [req.user.id]
-    );
+// Get user profile
+router.get('/profile', authMiddleware, userController.getProfile);
 
-    res.status(200).json({
-      success: true,
-      data: result.rows[0],
-    });
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching profile',
-    });
-  }
-});
+// Update user profile
+router.put('/profile', 
+  authMiddleware,
+  validate([
+    body('first_name').optional().trim().isLength({ min: 2, max: 100 }),
+    body('last_name').optional().trim().isLength({ min: 2, max: 100 }),
+    body('profile_picture').optional().isURL(),
+  ]),
+  userController.updateProfile
+);
 
-router.put('/profile', authMiddleware, async (req, res) => {
-  try {
-    const { first_name, last_name, profile_picture } = req.body;
-    
-    const result = await pool.query(
-      `UPDATE users 
-       SET first_name = $1, last_name = $2, profile_picture = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 
-       RETURNING id, email, first_name, last_name, profile_picture`,
-      [first_name, last_name, profile_picture, req.user.id]
-    );
+// Change password
+router.put('/change-password',
+  authMiddleware,
+  validate([
+    body('current_password').notEmpty(),
+    body('new_password').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
+  ]),
+  userController.changePassword
+);
 
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: result.rows[0],
-    });
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating profile',
-    });
-  }
-});
+// Delete account
+router.delete('/account', authMiddleware, userController.deleteAccount);
 
-module.exports = router;
+// Get all users (admin only)
+router.get('/', authMiddleware, userController.getAllUsers);
+
+module.exports = router
